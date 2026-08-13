@@ -1,40 +1,40 @@
 # bypass_403.sh
 
-Test veelvoorkomende HTTP 403-bypass technieken (headers, methoden, path-manipulatie)
+Tests common HTTP 403 bypass techniques (headers, methods, path manipulation) against a single URL.
 
-## Vereist
+## Requirements
 
-`bash` en `curl`
+- `bash` and `curl`
 
-## Gebruik
+## Usage
 
 ```bash
-bash bypass_403.sh [opties] <URL>
+bash bypass_403.sh [options] <URL>
 ```
 
-## Opties
+## Options
 
-| Optie | Kort | Beschrijving |
-|-------|------|--------------|
-| `--cookies` | `-c` | Cookie-header in Burp-notatie: `"naam=waarde; naam2=waarde2"` |
-| `--header`  | `-H` | Extra header zoals bij curl. Mag meerdere keren. |
-| `--help`    | `-h` | Toon hulptekst. |
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--cookies` | `-c` | Cookie header in Burp notation: `"name=value; name2=value2"` |
+| `--header`  | `-H` | Extra header like curl. May be repeated. |
+| `--help`    | `-h` | Show help text. |
 
-## Voorbeelden
+## Examples
 
-Anoniem:
+Anonymous:
 
 ```bash
 bash bypass_403.sh https://target.tld/admin
 ```
 
-Geauthenticeerd met cookies:
+Authenticated with cookies:
 
 ```bash
 bash bypass_403.sh -c "csrftoken=zH8p2...; session=3a1lp..." https://target.tld/admin
 ```
 
-Met bearer-token en extra header:
+With a bearer token and an extra header:
 
 ```bash
 bash bypass_403.sh \
@@ -43,7 +43,7 @@ bash bypass_403.sh \
   https://target.tld/admin
 ```
 
-## Output lezen
+## Reading the output
 
-- **Groen (2xx)** = mogelijke bypass.
-- **Rood (401/403)** = geen bypass 
+- **Green (2xx)** = possible bypass.
+- **Red (401/403)** = still blocked.
